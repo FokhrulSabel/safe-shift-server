@@ -7,6 +7,16 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET);
 const app = express();
 const port = process.env.PORT || 5000;
 
+const crypto = require("crypto");
+
+function generateTrackingId() {
+  const prefix = "PRCL"; // your brand prefix
+  const date = new Date().toISOString().slice(0, 10).replace(/-/g, ""); // YYYYMMDD
+  const random = crypto.randomBytes(3).toString("hex").toUpperCase(); // 6-char random hex
+
+  return `${prefix}-${date}-${random}`;
+}
+
 // middleware
 app.use(cors());
 app.use(express.json());
@@ -144,12 +154,15 @@ async function run() {
 
       console.log("session retrieve", session);
 
+      const trackingId = generateTrackingId();
+
       if (session.payment_status === "paid") {
         const id = session.metadata.parcelId;
         const query = { _id: new ObjectId(id) };
         const update = {
           $set: {
             paymentStatus: "paid",
+            trackingId: trackingId,
           },
         };
 
@@ -164,7 +177,6 @@ async function run() {
           transactionId: session.payment_intent,
           paymentStatus: session.payment_status,
           paidAt: new Date(),
-          trackingId: "",
         };
 
         if (session.payment_status === "paid") {
@@ -172,6 +184,8 @@ async function run() {
           res.send({
             success: true,
             modifyParcel: result,
+            trackingId: trackingId,
+            transactionId: session.payment_intent,
             paymentInfo: resultPayment,
           });
         }
