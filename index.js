@@ -44,6 +44,7 @@ async function run() {
 
     const db = client.db("safe_shift_db");
     const parcelsCollection = db.collection("parcels");
+    const paymentCollection = db.collection("payments");
 
     // parcel api
     app.get("/parcels", async (req, res) => {
@@ -85,7 +86,7 @@ async function run() {
       res.send(result);
     });
 
-    // payment related apis v2
+    // payment related apis v2 (new)
     app.post("/payment-checkout-session", async (req, res) => {
       const paymentInfo = req.body;
       const amount = parseInt(paymentInfo.cost) * 100;
@@ -114,7 +115,8 @@ async function run() {
       res.send({ url: session.url });
     });
 
-    // payment related apis v1
+
+    // payment related apis v1 (old)
     app.post("/create-checkout-session", async (req, res) => {
       const paymentInfo = req.body;
       const amount = parseInt(paymentInfo.cost) * 100;
@@ -146,13 +148,25 @@ async function run() {
       res.send({ url: session.url });
     });
 
+
     // payment success api
     app.patch("/payment-success", async (req, res) => {
       const sessionId = req.query.session_id;
-
       const session = await stripe.checkout.sessions.retrieve(sessionId);
 
-      console.log("session retrieve", session);
+      // console.log('session retrieve', session)
+      const transactionId = session.payment_intent;
+      const query = { transactionId: transactionId };
+
+      const paymentExist = await paymentCollection.findOne(query);
+      console.log(paymentExist);
+      if (paymentExist) {
+        return res.send({
+          message: "already exists",
+          transactionId,
+          trackingId: paymentExist.trackingId,
+        });
+      }
 
       const trackingId = generateTrackingId();
 
@@ -177,10 +191,12 @@ async function run() {
           transactionId: session.payment_intent,
           paymentStatus: session.payment_status,
           paidAt: new Date(),
+          trackingId: trackingId,
         };
 
         if (session.payment_status === "paid") {
           const resultPayment = await paymentCollection.insertOne(payment);
+
           res.send({
             success: true,
             modifyParcel: result,
