@@ -180,9 +180,11 @@ async function run() {
       if (riderEmail) {
         query.riderEmail = riderEmail;
       }
-      if (deliveryStatus) {
-        // query.deliveryStatus = deliveryStatus;
-        query.deliveryStatus = { $in: ["driver_assigned", "rider_arriving"] };
+      if (deliveryStatus !== "parcel_delivered") {
+        // query.deliveryStatus = {$in: ['driver_assigned', 'rider_arriving']}
+        query.deliveryStatus = { $nin: ["parcel_delivered"] };
+      } else {
+        query.deliveryStatus = deliveryStatus;
       }
 
       const cursor = parcelsCollection.find(query);
@@ -190,7 +192,6 @@ async function run() {
       res.send(result);
     });
 
-    // TODO: rename this to be specific like /parcels/:id/assign
     app.get("/parcels/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -207,6 +208,7 @@ async function run() {
       res.send(result);
     });
 
+    // TODO: rename this to be specific like /parcels/:id/assign
     app.patch("/parcels/:id", async (req, res) => {
       const { riderId, riderName, riderEmail } = req.body;
       const id = req.params.id;
