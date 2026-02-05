@@ -68,7 +68,7 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
 
-    const db = client.db("zap_shift_db");
+    const db = client.db("safe_shift_db");
     const userCollection = db.collection("users");
     const parcelsCollection = db.collection("parcels");
     const paymentCollection = db.collection("payments");
@@ -169,6 +169,22 @@ async function run() {
       const options = { sort: { createdAt: -1 } };
 
       const cursor = parcelsCollection.find(query, options);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    app.get("/parcels/rider", async (req, res) => {
+      const { riderEmail, deliveryStatus } = req.query;
+      const query = {};
+
+      if (riderEmail) {
+        query.riderEmail = riderEmail;
+      }
+      if (deliveryStatus) {
+        query.deliveryStatus = deliveryStatus;
+      }
+
+      const cursor = parcelsCollection.find(query);
       const result = await cursor.toArray();
       res.send(result);
     });
